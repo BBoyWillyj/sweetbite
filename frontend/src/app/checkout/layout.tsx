@@ -1,12 +1,10 @@
+'use client'
+
 import Header from '@/components/Header'
 import { ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
 
-interface CheckoutLayoutProps {
-  children: ReactNode
-  params?: any
-}
-
-function StepIndicator({ current }: { current: number }) {
+export function StepIndicator({ current }: { current: number }) {
   const steps = ['Contact', 'Pickup', 'Payment', 'Confirmation']
   return (
     <div className="bg-white border-b border-gray-200">
@@ -50,15 +48,16 @@ function StepIndicator({ current }: { current: number }) {
   )
 }
 
-export default function CheckoutLayout({ children, params }: CheckoutLayoutProps) {
-  const pathParts = typeof window !== 'undefined' ? window.location.pathname.split('/') : []
-  const stepMap: { [key: string]: number } = {
-    contact: 1,
-    pickup: 2,
-    payment: 3,
-    confirmation: 4,
-  }
-  const currentStep = stepMap[pathParts[pathParts.length - 1]] || 1
+export default function CheckoutLayout({ children }: { children: ReactNode }) {
+const pathname = usePathname()
+const stepMap: { [key: string]: number } = {
+   contact: 1,
+   pickup: 2,
+   payment: 3,
+   confirmation: 4
+}
+const lastSegment = pathname.split('/').filter(Boolean).pop() ?? ''
+const currentStep = stepMap[lastSegment] ?? 1
 
   return (
     <>

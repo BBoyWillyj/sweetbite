@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { subscribeToOrders, updateOrderStatus } from '@/lib/db'
+import { subscribeToOrders, updateOrderStatus, updatePaymentStatus  } from '@/lib/db'
 import { Order, OrderStatus } from '@/types'
 import { formatNGN } from '@/lib/paystack'
 import { AlertCircle, Loader, CheckCircle } from 'lucide-react'
+
 
 const STATUS_COLORS: { [key in OrderStatus]: string } = {
   Preparing: 'bg-yellow-100 text-yellow-700',
@@ -28,17 +29,22 @@ export default function AdminDashboard() {
     return () => unsubscribe()
   }, [])
 
-  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
-    setUpdatingId(orderId)
-    try {
-      await updateOrderStatus(orderId, newStatus)
-    } catch (err) {
-      console.error('Error updating status:', err)
-      setError('Failed to update order status')
-    } finally {
-      setUpdatingId(null)
+ const handleStatusChange = async (orderId: string, newStatus: OrderStatus, order: Order) => {
+  setUpdatingId(orderId)
+  try {
+    await updateOrderStatus(orderId, newStatus)
+
+    // For cash orders, mark payment as completed when picked up
+    if (newStatus === 'PickedUp' && order.paymentMethod === 'cash') {
+      await updatePaymentStatus(orderId, 'completed')
     }
+  } catch (err) {
+    console.error('Error updating status:', err)
+    setError('Failed to update order status')
+  } finally {
+    setUpdatingId(null)
   }
+}
 
   const nextStatus: { [key in OrderStatus]: OrderStatus } = {
     Preparing: 'Ready',
@@ -140,7 +146,7 @@ export default function AdminDashboard() {
               {/* Status Update Button */}
               {order.status !== 'PickedUp' && (
                 <button
-                  onClick={() => handleStatusChange(order.id, nextStatus[order.status])}
+                  onClick={() => handleStatusChange(order.id, nextStatus[order.status], order)}
                   disabled={updatingId === order.id}
                   className="w-full bg-primary text-white font-semibold py-2 rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                 >

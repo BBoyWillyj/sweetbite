@@ -45,6 +45,7 @@ export interface Order {
   pickupTime: string
   status: OrderStatus
   paymentStatus: PaymentStatus
+  paymentMethod?: 'card' | 'cash'
   paymentRef?: string
   createdAt: Date
   updatedAt: Date

@@ -1,72 +1,144 @@
-# SweetBites - Shawarma Ordering Website
+# SweetBites v2 — Frontend + Backend Architecture
 
-A production-ready shawarma ordering platform built with Next.js, Firebase, and Paystack.
+## What Changed from v1
 
-## Project Overview
+| Concern | v1 (old) | v2 (new) |
+|---------|----------|----------|
+| Firebase Auth | ✅ Frontend | ✅ Frontend (unchanged) |
+| Firestore (menu, orders) | ✅ Frontend | ✅ Frontend (unchanged) |
+| Paystack — initialize | ❌ Frontend (secret key exposed) | ✅ Backend only |
+| Paystack — verify | ❌ Frontend | ✅ Backend only |
+| Paystack — webhook | ❌ None | ✅ Backend (most reliable) |
+| Secret keys in browser | ❌ Yes | ✅ Never |
 
-**Business:** SweetBites
-**Location:** Back of Amac, Lugbe, Abuja
-**Menu:** Single Sausage (₦2,000) | Double Sausage (₦2,200) | Beef with Double Sausage (₦4,000)
+## Project Structure
 
-## 🚀 Tech Stack
-
-- **Framework:** Next.js 14+ (App Router)
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS
-- **Authentication:** Firebase Auth
-- **Database:** Firebase Firestore
-- **Payments:** Paystack
-- **UI Icons:** Lucide React
-
-## 📋 Features
-
-### Customer-Facing
-- ✅ Browse menu with real-time availability
-- ✅ Add/remove/edit cart items (localStorage persistence)
-- ✅ Email & Google authentication
-- ✅ Multi-step checkout (contact → pickup time → payment)
-- ✅ Paystack card payments + Cash on pickup
-- ✅ Order confirmation with real-time status tracking
-- ✅ Order history with past orders
-- ✅ Mobile-first responsive design
-
-### Admin Dashboard
-- ✅ Real-time order management
-- ✅ Order status updates (Preparing → Ready → Picked Up)
-- ✅ Menu item management (add/edit/delete)
-- ✅ Toggle item availability
-- ✅ Admin-protected routes
-
-## 🔧 Setup Instructions
-
-### 1. Prerequisites
-- Node.js 18+ and npm/yarn
-- Firebase project (free tier works)
-- Paystack account
-
-### 2. Clone & Install
-
-```bash
-cd sweetbites
-npm install
+```
+sweetbites-v2/
+├── package.json              # Root — run both with `npm run dev`
+│
+├── frontend/                 # Next.js 14 + TypeScript + Tailwind
+│   └── src/
+│       ├── app/              # All pages (unchanged from v1 except payment)
+│       ├── components/       # All components (unchanged from v1)
+│       └── lib/
+│           ├── firebase.ts   # Firebase auth + Firestore (unchanged)
+│           ├── db.ts         # Firestore helpers (unchanged)
+│           ├── paystack.ts   # Format utils only (no API calls)
+│           └── api.ts        # ← NEW: calls backend for payments
+│
+└── backend/                  # Express + TypeScript
+    └── src/
+        ├── index.ts          # Server entry point, CORS, rate limiting
+        ├── config/
+        │   ├── firebase.ts   # Firebase Admin SDK (verifies tokens)
+        │   └── paystack.ts   # Paystack API client (holds secret key)
+        ├── middleware/
+        │   ├── auth.ts       # Verifies Firebase ID token on requests
+        │   └── errorHandler.ts
+        ├── routes/
+        │   └── payments.ts   # /initialize, /verify, /webhook, /status
+        └── types/
+            └── index.ts
 ```
 
-### 3. Firebase Setup
+## How It Works
 
-1. Go to [Firebase Console](https://console.firebase.google.com)
-2. Create a new project
-3. Enable these services:
-   - **Authentication:** Email/Password + Google
-   - **Firestore Database:** Create in production mode
-   - **Storage:** Create a bucket
-4. Copy credentials from Project Settings → General → Your apps
+### Payment Flow (Card)
 
-### 4. Environment Variables
+```
+User clicks "Pay"
+      │
+      ▼
+frontend: createOrder() → Firestore (status: pending)
+      │
+      ▼
+frontend: POST /api/payments/initialize
+  + Firebase ID token in Authorization header
+      │
+      ▼
+backend: verify Firebase token ✓
+backend: call Paystack API with SECRET KEY
+backend: save reference to Firestore order
+backend: return { authorizationUrl, reference }
+      │
+      ▼
+frontend: window.location.href = authorizationUrl
+      │
+      ▼
+User enters card on Paystack's hosted page
+      │
+      ├─── Paystack webhook fires immediately ──────────────────────────────►
+      │         backend: verify signature
+      │         backend: verify transaction
+      │         backend: update Firestore order (paymentStatus: completed)
+      │
+      ▼
+Paystack redirects back to frontend (/checkout/payment?reference=xxx)
+      │
+      ▼
+frontend: POST /api/payments/verify
+backend: verify again (idempotent)
+backend: confirm Firestore is updated
+frontend: redirect to /order-confirmation/:id
+```
 
-Create `.env.local` in the root directory:
+### Why Webhook + Verify?
+
+- **Webhook** = most reliable. Paystack fires it even if user closes the browser.
+- **Verify** = for when the user comes back. Belt-and-suspenders approach.
+
+## Setup
+
+### 1. Install Dependencies
+
+```bash
+npm run install:all
+# installs root, backend, and frontend packages
+```
+
+### 2. Configure Backend
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Fill in `.env`:
 
 ```env
-# Firebase Configuration
+PORT=4000
+PAYSTACK_SECRET_KEY=sk_test_xxx          # from Paystack dashboard
+PAYSTACK_WEBHOOK_SECRET=xxx              # from Paystack → Settings → Webhooks
+
+# Firebase Admin — Option A (local dev)
+FIREBASE_SERVICE_ACCOUNT_PATH=./firebase-service-account.json
+
+# Firebase Admin — Option B (production, e.g. Railway/Render)
+# FIREBASE_PROJECT_ID=xxx
+# FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@project.iam.gserviceaccount.com
+# FIREBASE_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n..."
+
+FRONTEND_URL=http://localhost:3000
+```
+
+#### Get Firebase Service Account
+
+1. Firebase Console → Project Settings → Service Accounts
+2. Click **Generate new private key**
+3. Download JSON → rename to `firebase-service-account.json`
+4. Place in `backend/` directory (it's in `.gitignore`)
+
+### 3. Configure Frontend
+
+```bash
+cd frontend
+cp .env.example .env.local
+```
+
+Fill in `.env.local`:
+
+```env
 NEXT_PUBLIC_FIREBASE_API_KEY=xxx
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=xxx.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=xxx
@@ -74,240 +146,122 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=xxx.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=xxx
 NEXT_PUBLIC_FIREBASE_APP_ID=xxx
 
-# Paystack Configuration
-NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=pk_live_xxx (or pk_test_xxx for testing)
-PAYSTACK_SECRET_KEY=sk_live_xxx (or sk_test_xxx for testing)
-
-# App Configuration
-NEXT_PUBLIC_APP_NAME=SweetBites
-NEXT_PUBLIC_PICKUP_ADDRESS=Back of Amac, Lugbe, Abuja
+NEXT_PUBLIC_BACKEND_URL=http://localhost:4000
 NEXT_PUBLIC_DELIVERY_FEE=500
 ```
 
-### 5. Initialize Firestore
+No Paystack keys needed in the frontend.
 
-Go to Firebase Console → Firestore → Create collection `menuItems` with these sample documents:
-
-```json
-{
-  "name": "Single Sausage",
-  "price": 2000,
-  "description": "Fresh shawarma with single sausage",
-  "imageUrl": "https://images.unsplash.com/photo-1567521464027-f127ff144326?w=300",
-  "dietary": ["spicy"],
-  "available": true
-}
-```
-
-### 6. Create Admin User
-
-1. Sign up in the app at `/auth/signup`
-2. Get your Firebase UID from Firebase Console → Authentication
-3. In Firestore, go to `users/{uid}` and change `role` from `customer` to `admin`
-
-### 7. Run Development Server
+### 4. Run Both Servers
 
 ```bash
+# From root directory:
 npm run dev
+
+# Or individually:
+npm run dev:backend    # http://localhost:4000
+npm run dev:frontend   # http://localhost:3000
 ```
 
-Open http://localhost:3000
+### 5. Set Up Paystack Webhook (Production)
 
-## 📂 Project Structure
+1. Paystack Dashboard → Settings → Webhooks
+2. Add URL: `https://your-backend.com/api/payments/webhook`
+3. Copy the webhook secret → paste in `backend/.env` as `PAYSTACK_WEBHOOK_SECRET`
 
-```
-src/
-├── app/                          # Next.js App Router pages
-│   ├── page.tsx                  # Home/Menu page
-│   ├── cart/page.tsx            # Shopping cart
-│   ├── auth/
-│   │   ├── login/page.tsx       # Login page
-│   │   └── signup/page.tsx      # Sign up page
-│   ├── checkout/
-│   │   ├── contact/page.tsx     # Step 1: Customer info
-│   │   ├── pickup/page.tsx      # Step 2: Pickup time
-│   │   └── payment/page.tsx     # Step 3: Payment method
-│   ├── order-confirmation/[orderId]/page.tsx  # Order status
-│   ├── order-history/page.tsx   # Past orders
-│   └── admin/                    # Protected admin routes
-│       ├── page.tsx             # Order management
-│       └── menu/page.tsx        # Menu management
-├── components/
-│   ├── Header.tsx               # Navigation header
-│   ├── ProductCard.tsx          # Menu item card
-│   ├── CartItemComponent.tsx    # Cart line item
-│   ├── StatusTracker.tsx        # Order status display
-│   └── providers/               # Context providers
-│       ├── AuthProvider.tsx     # Auth context
-│       └── CartProvider.tsx     # Cart context
-├── lib/
-│   ├── firebase.ts              # Firebase config
-│   ├── db.ts                    # Database functions
-│   └── paystack.ts              # Paystack integration
-├── types/
-│   └── index.ts                 # TypeScript definitions
-└── app/
-    └── globals.css              # Global styles
+For local development, use [ngrok](https://ngrok.com):
+```bash
+ngrok http 4000
+# Copy https URL → paste in Paystack webhook settings
 ```
 
-## 📊 Firestore Schema
+## API Endpoints
 
-### Collections
+### `POST /api/payments/initialize`
+Requires: `Authorization: Bearer <firebase-id-token>`
 
-**menuItems/**
-```
+```json
+// Request body
 {
-  id: string (auto)
-  name: string
-  price: number
-  description: string
-  imageUrl: string
-  dietary: string[] (e.g., ["vegan", "spicy"])
-  available: boolean
-  createdAt: timestamp
+  "orderId": "abc123",
+  "email": "customer@example.com",
+  "amount": 4500,
+  "customerName": "John Doe",
+  "items": [...],
+  "pickupTime": "today ASAP"
 }
-```
 
-**orders/**
-```
+// Response
 {
-  id: string (auto)
-  userId: string (Firebase UID)
-  customerName: string
-  phone: string
-  email: string
-  items: [{itemId, name, price, quantity}, ...]
-  subtotal: number
-  deliveryFee: number
-  total: number
-  pickupTime: string
-  status: "Preparing" | "Ready" | "PickedUp"
-  paymentStatus: "pending" | "completed" | "failed"
-  paymentRef: string (Paystack reference)
-  createdAt: timestamp
-  updatedAt: timestamp
-}
-```
-
-**users/**
-```
-{
-  uid: string (Firebase UID)
-  email: string
-  displayName: string
-  role: "customer" | "admin"
-  createdAt: timestamp
-}
-```
-
-## 🔐 Security Rules
-
-Apply these Firestore rules:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Menu items - public read, admin write
-    match /menuItems/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Orders - users read their own, write own, admin can update
-    match /orders/{orderId} {
-      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Users - own profile read/write
-    match /users/{uid} {
-      allow read: if request.auth.uid == uid;
-      allow write: if request.auth.uid == uid;
-    }
+  "success": true,
+  "data": {
+    "authorizationUrl": "https://checkout.paystack.com/xxx",
+    "accessCode": "xxx",
+    "reference": "SB-1234567890-abc123"
   }
 }
 ```
 
-## 💳 Paystack Integration
+### `POST /api/payments/verify`
+Requires: `Authorization: Bearer <firebase-id-token>`
 
-### Testing
-- Use Paystack test keys for development
-- Test card: `5053-0439-5534-1970`
-- Test expiry: Any future date
-- Test CVV: Any 3 digits
+```json
+// Request
+{ "reference": "SB-xxx", "orderId": "abc123" }
 
-### Production
-1. Get live keys from Paystack dashboard
-2. Update `.env.local` with live keys
-3. Deploy to production
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
-
-```bash
-npm install -g vercel
-vercel
+// Response
+{
+  "success": true,
+  "data": { "status": "success", "orderId": "abc123", "amountPaid": 4500 }
+}
 ```
 
-Set environment variables in Vercel dashboard → Settings → Environment Variables
+### `POST /api/payments/webhook`
+Called by Paystack automatically. Not called by frontend.
 
-### Other Platforms
-- Environment variables must include all `.env.local` keys
-- Build command: `npm run build`
-- Start command: `npm run start`
+### `GET /api/payments/status/:reference`
+Requires: `Authorization: Bearer <firebase-id-token>`
 
-## 📱 Testing Checklist
+### `GET /health`
+No auth required. Returns server status.
 
-- [ ] Browse menu on home page
-- [ ] Add items to cart
-- [ ] View cart and modify quantities
-- [ ] Sign up/login with email
-- [ ] Sign in with Google
-- [ ] Go through checkout flow (contact → pickup → payment)
-- [ ] Test card payment with Paystack
-- [ ] Test cash on pickup option
-- [ ] View order confirmation with status
-- [ ] Check order history
-- [ ] Admin: Log in as admin
-- [ ] Admin: View real-time orders
-- [ ] Admin: Update order status
-- [ ] Admin: Add/edit/delete menu items
+## Deployment
 
-## 🐛 Troubleshooting
+### Backend (Railway / Render / Fly.io)
 
-**"Firebase config error"**
-- Check `.env.local` keys match Firebase project
-- Ensure all `NEXT_PUBLIC_*` variables are present
+1. Push `backend/` folder (or whole monorepo)
+2. Set environment variables in dashboard
+3. Use Option B Firebase config (individual env vars, not file)
+4. Set `FRONTEND_URL` to your production frontend URL
 
-**"Payment button not working"**
-- Verify Paystack key is correct
-- Check browser console for errors
-- Ensure `/checkout/payment` page loads Paystack script
+### Frontend (Vercel)
 
-**"Admin access denied"**
-- Verify user `role` field is set to `admin` in Firestore
-- Clear browser cache and re-login
+1. Push `frontend/` folder
+2. Set environment variables in Vercel dashboard
+3. Set `NEXT_PUBLIC_BACKEND_URL` to your production backend URL
 
-**"Orders not updating in real-time"**
-- Check Firestore listener is connected
-- Verify Firestore rules allow admin read/write
+## Security Notes
 
-## 📞 Support
+- ✅ `PAYSTACK_SECRET_KEY` only exists in backend `.env` — never in frontend
+- ✅ Webhook verified with HMAC SHA512 signature
+- ✅ Every payment route requires a valid Firebase ID token
+- ✅ Order ownership verified before processing payment (userId check)
+- ✅ Payment reference stored in Firestore to prevent reference swapping
+- ✅ Idempotency guard: already-paid orders are skipped
+- ✅ Rate limiting on all routes, stricter on payment routes
+- ✅ Helmet for security headers
+- ✅ CORS locked to frontend URL only
 
-For issues:
-1. Check browser console for errors
-2. Check Firebase Console → Logs
-3. Verify all environment variables
-4. Check Paystack test credentials
+## Testing Paystack
 
-## 📄 License
+Use test keys and test cards:
 
-This project is built for SweetBites. All rights reserved.
+| Card | Outcome |
+|------|---------|
+| `5078 5078 5078 5078 12` | Success |
+| `5078 5078 5078 5078 13` | Insufficient funds |
+| `4084 0840 8408 4081` | Visa success |
 
----
+Expiry: Any future date. CVV: Any 3 digits.
 
-**Built with ❤️ for SweetBites**
-Delivery: Back of Amac, Lugbe, Abuja
+Get test keys from Paystack Dashboard → toggle "Test Mode" ON.

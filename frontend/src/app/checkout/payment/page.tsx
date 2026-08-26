@@ -40,7 +40,6 @@ export default function PaymentPage() {
     const params = new URLSearchParams(window.location.search)
     const reference = params.get('reference') || params.get('trxref')
     const orderId = params.get('orderId') || sessionStorage.getItem('pendingOrderId')
-    console.log('PaymentPage: reference:', reference, 'orderId:', orderId)
 
     if (reference && orderId) {
       handleVerifyAfterRedirect(reference, orderId)
@@ -92,6 +91,7 @@ export default function PaymentPage() {
         pickupTime: `${checkoutData.pickupDate} ${checkoutData.pickupTime}`,
         status: 'Preparing',
         paymentStatus: 'pending',
+        paymentMethod: 'card',
       })
 
       const orderId = orderRef.id
@@ -144,6 +144,7 @@ export default function PaymentPage() {
       pickupTime: `${checkoutData.pickupDate} ${checkoutData.pickupTime}`,
       status: 'Preparing',
       paymentStatus: 'pending',
+      paymentMethod: 'cash',
     })
     clearCart()
     sessionStorage.removeItem('checkoutData')

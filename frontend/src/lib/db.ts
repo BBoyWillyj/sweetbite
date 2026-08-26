@@ -10,10 +10,11 @@ import {
   getDoc,
   serverTimestamp,
   onSnapshot,
-  QueryConstraint,
+  setDoc,
 } from 'firebase/firestore'
 import { db } from './firebase'
 import { MenuItem, Order, User } from '@/types'
+
 
 // Menu Items
 export async function getMenuItems(): Promise<MenuItem[]> {
@@ -153,7 +154,7 @@ export async function createOrUpdateUser(uid: string, user: Omit<User, 'uid'>) {
   if (existing.exists()) {
     await updateDoc(userDoc, user)
   } else {
-    await updateDoc(userDoc, {
+    await setDoc(userDoc, {
       ...user,
       createdAt: serverTimestamp(),
     })

@@ -9,6 +9,8 @@ import { getOrder } from '@/lib/db'
 import { Order } from '@/types'
 import { formatNGN } from '@/lib/paystack'
 import { Loader, CheckCircle, AlertCircle, MapPin } from 'lucide-react'
+import { StepIndicator } from '@/app/checkout/layout'
+
 
 export default function OrderConfirmationPage() {
   const params = useParams()
@@ -43,6 +45,7 @@ export default function OrderConfirmationPage() {
     return (
       <>
         <Header />
+        <StepIndicator current={4} />
         <div className="min-h-screen flex items-center justify-center">
           <Loader className="w-8 h-8 animate-spin text-primary" />
         </div>
@@ -54,6 +57,7 @@ export default function OrderConfirmationPage() {
     return (
       <>
         <Header />
+        <StepIndicator current={4} />
         <main className="min-h-screen bg-gray-50">
           <div className="max-w-md mx-auto px-4 py-12">
             <div className="text-center">
@@ -72,14 +76,15 @@ export default function OrderConfirmationPage() {
 
   const readyTime = order.createdAt
     ? new Date(order.createdAt.getTime() + 15 * 60000).toLocaleTimeString('en-NG', {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    : undefined
 
   return (
     <>
       <Header />
+      <StepIndicator current={4} />
       <main className="min-h-screen bg-gray-50">
         <div className="max-w-md mx-auto px-4 py-6">
           {/* Success Header */}
@@ -171,10 +176,18 @@ export default function OrderConfirmationPage() {
             </div>
           )}
 
-          {order.paymentStatus === 'pending' && order.paymentStatus === 'pending' && (
+          {order.paymentStatus === 'pending' && order.paymentMethod === 'card' && (
             <div className="card p-4 mb-6 bg-yellow-50 border border-yellow-200">
               <p className="text-sm text-yellow-900">
                 ⏳ Payment pending. Please complete payment before pickup.
+              </p>
+            </div>
+          )}
+
+          {order.paymentMethod === 'cash' && order.status !== 'PickedUp' && (
+            <div className="card p-4 mb-6 bg-blue-50 border border-blue-200">
+              <p className="text-sm text-blue-900">
+                💵 Pay with cash when you collect your order.
               </p>
             </div>
           )}

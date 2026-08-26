@@ -107,15 +107,17 @@ export default function OrderHistoryPage() {
                         <p className="font-bold text-lg text-primary">
                           {formatNGN(order.total)}
                         </p>
-                        <p className={`text-xs font-semibold ${
-                          order.paymentStatus === 'completed'
+                        <p className={`text-xs font-semibold ${order.paymentStatus === 'completed'
                             ? 'text-green-600'
-                            : order.paymentStatus === 'pending'
-                              ? 'text-yellow-600'
-                              : 'text-red-600'
-                        }`}>
+                            : order.paymentMethod === 'cash'
+                              ? 'text-blue-600'
+                              : order.paymentStatus === 'pending'
+                                ? 'text-yellow-600'
+                                : 'text-red-600'
+                          }`}>
                           {order.paymentStatus === 'completed' && '✓ Paid'}
-                          {order.paymentStatus === 'pending' && '⏳ Pending'}
+                          {order.paymentMethod === 'cash' && order.paymentStatus !== 'completed' && '💵 Cash'}
+                          {order.paymentMethod !== 'cash' && order.paymentStatus === 'pending' && '⏳ Pending'}
                           {order.paymentStatus === 'failed' && '✗ Failed'}
                         </p>
                       </div>
@@ -132,13 +134,12 @@ export default function OrderHistoryPage() {
 
                     <div className="flex justify-between items-center">
                       <div>
-                        <span className={`text-xs font-semibold px-2 py-1 rounded ${
-                          order.status === 'PickedUp'
+                        <span className={`text-xs font-semibold px-2 py-1 rounded ${order.status === 'PickedUp'
                             ? 'bg-green-100 text-green-700'
                             : order.status === 'Ready'
                               ? 'bg-blue-100 text-blue-700'
                               : 'bg-yellow-100 text-yellow-700'
-                        }`}>
+                          }`}>
                           {order.status}
                         </span>
                       </div>

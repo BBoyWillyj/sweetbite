@@ -28,44 +28,44 @@ export default function PaymentPage() {
   // ── On mount — load session data, guard against direct navigation ──────────
   useEffect(() => {
     const raw = sessionStorage.getItem('checkoutData')
-    if (!raw || !firebaseUser || cart.items.length === 0) {
+    if (!raw || !firebaseUser) {
       router.replace('/cart')
       return
     }
     setCheckoutData(JSON.parse(raw))
-  }, [firebaseUser, cart, router])
+  }, [firebaseUser, router])
 
   // ── After user returns from Paystack redirect ─────────────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const reference = params.get('reference')
-    const orderId = params.get('orderId')
+    const reference = params.get('reference') || params.get('trxref')
+    const orderId = params.get('orderId') || sessionStorage.getItem('pendingOrderId')
 
     if (reference && orderId) {
       handleVerifyAfterRedirect(reference, orderId)
     }
   }, [])
 
-  async function handleVerifyAfterRedirect(reference: string, orderId: string) {
-    setLoading(true)
-    setError(null)
+  async function handleVerifyAfterRedirect(reference: string, orderId?: string) {
+    setLoading(true);
+    setError(null);
     try {
-      const result = await verifyPayment(reference, orderId)
-
-      if (result.status === 'success') {
-        clearCart()
-        sessionStorage.removeItem('checkoutData')
-        router.replace(`/order-confirmation/${orderId}`)
+      const result = await verifyPayment(reference, orderId ?? "");
+      const finalOrderId = orderId || result.orderId;
+      if (result.status === "success") {
+        clearCart();
+        sessionStorage.removeItem("checkoutData");
+        sessionStorage.removeItem("pendingOrderId");
+        router.replace(`/order-confirmation/${finalOrderId}`);
       } else {
-        setError(`Payment ${result.status}. Please try again.`)
+        setError(`Payment ${result.status}. Please try again.`);
       }
     } catch (err: any) {
-      setError(err.message || 'Could not verify payment. Please contact support.')
+      setError(err.message || "Could not verify payment. Please contact support.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
-
   // ── Card payment — backend initializes Paystack, we redirect ─────────────
   async function handleCardPayment() {
     if (!checkoutData || !firebaseUser) return
@@ -91,6 +91,7 @@ export default function PaymentPage() {
         pickupTime: `${checkoutData.pickupDate} ${checkoutData.pickupTime}`,
         status: 'Preparing',
         paymentStatus: 'pending',
+        paymentMethod: 'card',
       })
 
       const orderId = orderRef.id
@@ -120,41 +121,40 @@ export default function PaymentPage() {
     }
   }
 
-  // ── Cash payment — just write the order and redirect ──────────────────────
   async function handleCashPayment() {
-    if (!checkoutData || !firebaseUser) return
-    setError(null)
-    setLoading(true)
+  if (!checkoutData || !firebaseUser) return
+  setError(null)
+  setLoading(true)
 
-    try {
-      const orderRef = await createOrder({
-        userId: firebaseUser.uid,
-        customerName: checkoutData.customerName,
-        phone: checkoutData.phone,
-        email: checkoutData.email,
-        items: cart.items.map(({ itemId, name, price, quantity }) => ({
-          itemId,
-          name,
-          price,
-          quantity,
-        })),
-        subtotal,
-        deliveryFee,
-        total,
-        pickupTime: `${checkoutData.pickupDate} ${checkoutData.pickupTime}`,
-        status: 'Preparing',
-        paymentStatus: 'pending',     // cashier confirms at pickup
-      })
-
-      clearCart()
-      sessionStorage.removeItem('checkoutData')
-      router.push(`/order-confirmation/${orderRef.id}`)
-    } catch (err: any) {
-      setError(err.message || 'Failed to place order. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+  try {
+    const orderRef = await createOrder({
+      userId: firebaseUser.uid,
+      customerName: checkoutData.customerName,
+      phone: checkoutData.phone,
+      email: checkoutData.email,
+      items: cart.items.map(({ itemId, name, price, quantity }) => ({
+        itemId,
+        name,
+        price,
+        quantity,
+      })),
+      subtotal,
+      deliveryFee,
+      total,
+      pickupTime: `${checkoutData.pickupDate} ${checkoutData.pickupTime}`,
+      status: 'Preparing',
+      paymentStatus: 'pending',
+      paymentMethod: 'cash',
+    })
+    clearCart()
+    sessionStorage.removeItem('checkoutData')
+    router.push(`/order-confirmation/${orderRef.id}`)  // ← last
+  } catch (err: any) {
+    setError(err.message || 'Failed to place order. Please try again.')
+  } finally {
+    setLoading(false)
   }
+}
 
   // ── Guard render ──────────────────────────────────────────────────────────
   if (!checkoutData) {

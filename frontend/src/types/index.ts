@@ -54,9 +54,9 @@ export interface Order {
 export interface User {
   uid: string
   email: string
-  displayName?: string
+  displayName?: string | null
   role: 'customer' | 'admin'
-  createdAt: Date
+  createdAt?: Date
 }
 
 export interface CheckoutData {

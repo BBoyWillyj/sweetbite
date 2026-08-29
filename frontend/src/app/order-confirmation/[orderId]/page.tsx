@@ -9,7 +9,7 @@ import { getOrder } from '@/lib/db'
 import { Order } from '@/types'
 import { formatNGN } from '@/lib/paystack'
 import { Loader, CheckCircle, AlertCircle, MapPin } from 'lucide-react'
-import { StepIndicator } from '@/app/checkout/layout'
+import { StepIndicator } from '@/components/StepIndicator'
 
 
 export default function OrderConfirmationPage() {

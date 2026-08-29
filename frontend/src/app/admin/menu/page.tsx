@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { getAllMenuItems, addMenuItem, updateMenuItem, deleteMenuItem } from '@/lib/db'
 import { MenuItem } from '@/types'
 import { formatNGN } from '@/lib/paystack'
-import { Loader, Plus, Trash2, Edit2, AlertCircle, Check } from 'lucide-react'
+import { Loader, Plus, Trash2, Edit2, AlertCircle } from 'lucide-react'
 
 const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1567521464027-f127ff144326?w=300&h=300&fit=crop'
 

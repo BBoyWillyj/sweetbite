@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useAuth } from './providers/AuthProvider'
 import { useCart } from './providers/CartProvider'
 import { useState } from 'react'
-import { ShoppingCart, User, LogOut, Menu, X } from 'lucide-react'
+import { ShoppingCart, LogOut, Menu, X } from 'lucide-react'
 
 export default function Header() {
   const { firebaseUser, user, signOut } = useAuth()

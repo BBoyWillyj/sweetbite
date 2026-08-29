@@ -37,12 +37,12 @@ export async function getAllMenuItems(): Promise<MenuItem[]> {
 }
 
 export async function getMenuItem(id: string): Promise<MenuItem | null> {
-  const doc = await getDoc(doc(db, 'menuItems', id))
-  return doc.exists()
+  const docSnap = await getDoc(doc(db, 'menuItems', id))
+  return docSnap.exists()
     ? ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+        id: docSnap.id,
+        ...docSnap.data(),
+        createdAt: docSnap.data().createdAt?.toDate?.() || new Date(),
       } as MenuItem)
     : null
 }

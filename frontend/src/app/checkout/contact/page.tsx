@@ -97,7 +97,7 @@ export default function ContactPage() {
             name="email"
             value={formData.email}
             onChange={handleChange}
-            placeholder={firebaseUser?.email}
+            placeholder={firebaseUser?.email ?? undefined}
             className="input-field"
             required
           />

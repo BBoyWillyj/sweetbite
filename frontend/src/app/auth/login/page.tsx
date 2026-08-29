@@ -28,7 +28,7 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       await createOrUpdateUser(userCredential.user.uid, {
         email: userCredential.user.email || '',
-        displayName: userCredential.user.displayName,
+        displayName: userCredential.user.displayName ?? undefined,
         role: 'customer',
       })
       router.push('/')
@@ -48,7 +48,7 @@ export default function LoginPage() {
       const result = await signInWithPopup(auth, provider)
       await createOrUpdateUser(result.user.uid, {
         email: result.user.email || '',
-        displayName: result.user.displayName,
+        displayName: result.user.displayName ?? undefined,
         role: 'customer',
       })
       router.push('/')

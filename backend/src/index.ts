@@ -48,7 +48,7 @@ app.use(
         callback(null, true)
       } else {
         console.log(`CORS blocked: ${origin}`)
-        callback(null, true) // temporarily allow all to debug
+        callback(new Error(`CORS: origin ${origin} not allowed`))
       }
     },
     credentials: true,

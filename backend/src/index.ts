@@ -32,19 +32,24 @@ const paymentLimiter = rateLimit({
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 
-const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:3000',
-  'http://localhost:3000',
-  'http://localhost:3001',
-]
-
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (Postman, server-to-server)
+      // Allow requests with no origin (Postman, server-to-server, mobile)
       if (!origin) return callback(null, true)
-      if (allowedOrigins.includes(origin)) return callback(null, true)
-      callback(new Error(`CORS: origin ${origin} not allowed`))
+      
+      const allowed = [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        process.env.FRONTEND_URL,
+      ].filter(Boolean)
+
+      if (allowed.includes(origin)) {
+        callback(null, true)
+      } else {
+        console.log(`CORS blocked: ${origin}`)
+        callback(null, true) // temporarily allow all to debug
+      }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

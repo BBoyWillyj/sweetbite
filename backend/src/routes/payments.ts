@@ -67,6 +67,7 @@ router.post(
         amount: toKobo(amount),
         reference,
         currency: 'NGN',
+        callback_url: `${process.env.FRONTEND_URL}/checkout/payment?reference=${reference}&orderId=${orderId}`,
         metadata: {
           orderId,
           userId: req.user!.uid,

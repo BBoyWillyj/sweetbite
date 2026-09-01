@@ -48,7 +48,7 @@ app.use(
         callback(null, true)
       } else {
         console.log(`CORS blocked: ${origin}`)
-        callback(new Error(`CORS: origin ${origin} not allowed`))
+        callback(null, true) // temporarily allow all to debug
       }
     },
     credentials: true,
@@ -88,6 +88,7 @@ app.get('/health', (req, res) => {
     message: 'SweetBites backend is running',
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV || 'development',
+    frontendUrl: process.env.FRONTEND_URL || 'NOT SET', // ← add this
   })
 })
 
